@@ -1,0 +1,33 @@
+@startuml
+   participant O as "Operator"
+    participant MU as "MES UI"
+    participant MA as "MES API"
+    participant RC as "Redis Cache"
+    participant DB as "MES DB"
+    participant MQ as "RabbitMQ"
+
+    'Normal Read Flow
+    O->>MU: Request Orders List
+    MU->>MA: GET /api/orders
+    MA->>RC: Get Cached Data
+    RC-->>MA: Return Cache Hit
+    MA-->>MU: Return Orders
+
+    'Background Refresh
+    Note over MA,RC: Background Task(Refresh-ahead)
+    MA->>RC: Check TTL
+    RC-->>MA: Near Expiration
+    MA->>DB: Fetch Fresh Data
+    DB-->>MA: Return Data
+    MA->>RC: Update Cache
+
+    'Cache Miss Flow
+    O->>MU: Request Order Details
+    MU->>MA: GET /api/orders/{id}
+    MA->>RC: Get Cached Data
+    RC-->>MA: Cache Miss
+    MA->>DB: Fetch Data
+    DB-->>MA: Return Data
+    MA->>RC: Set Cache + TTL
+    MA-->>MU: Return Order
+@enduml
